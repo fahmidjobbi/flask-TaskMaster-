@@ -1,67 +1,77 @@
 from flask import Flask ,render_template,url_for,request,redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask_restful import Resource,Api,reqparse,abort,fields,marshal_with
+from flask_mongoengine import MongoEngine
+from flask_pymongo import PyMongo
+import uuid
 
 
 app=Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///test.db'
-db=SQLAlchemy(app)
-
-class Todo(db.Model):
-    id=db.Column(db.Integer,primary_key=True)
-    content=db.Column(db.String(200),nullable=False)
-    completed=db.Column(db.Integer,default=0)
-    date_created=db.Column(db.DateTime,default=datetime.utcnow)
-
-    def __repr__(self):
-        return '<Task %r>' % self.id
+database_name='todo'
+DB_URI="mongodb+srv://FahmiDJOBBI:55046258@cluster0.nraui4d.mongodb.net/?retryWrites=true&w=majority"
+app.config["MONGO_HOST"]=DB_URI
+db=MongoEngine()
+db.init_app(app)
+api=Api(app)
 
 
-
-
+class Todo(db.Document):
+     _id=db.ObjectIdField()
+     content=db.StringField()
+     completed=db.IntField(default=0)
+     date_created=db.DateTimeField(default=datetime.utcnow)
+     def to_json(self):
+         return {
+             "id":self._id,
+             "content":self.content,
+             "completed":self.completed,
+             "date_created":self.date_created
+         }
 
 @app.route('/',methods=['POST','GET']) #decorator
 def index():
     if request.method == 'POST':
+        try:
             taskcontent=request.form['task']
-            new_task=Todo(content=taskcontent)
-            try:
-                db.session.add(new_task)
-                db.session.commit()
-                return redirect('/')
-            except:
-                return 'There was an issue adding your task'
+            new_task=Todo(content=taskcontent,completed=0,date_created=datetime.utcnow)
+            print(new_task)
+            a=new_task.save()
+            print(a)
+               
+            return redirect('/')
+        except:
+            return 'There was an issue adding your task'
     else:
-        tasks=Todo.query.order_by(Todo.date_created).all()
+        tasks=Todo.objects.all()
         return render_template('index.html',tasks=tasks)
 
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<id>')
 def delete(id):
-    task_to_delete=Todo.query.get_or_404(id)
+    task_to_delete=Todo.objects.get(_id=id)
     try:
-        db.session.delete(task_to_delete)
-        db.session.commit()
+        task_to_delete.delete()
         return redirect('/')
     except:
         return 'There was a problem deleting that task'
+
     
-@app.route('/update/<int:id>',methods=['GET','POST'])
+@app.route('/update/<id>',methods=['GET','POST'])
 def update(id):
-    task_to_update=Todo.query.get_or_404(id)
-    if request.method == 'POST':
-        
-        task_to_update.content=request.form['task']
+    task=Todo.objects.get(_id=id)
+    if request.method=='POST':
+        task.content=request.form['task']
         try:
-            db.session.commit()
+            task.save()
             return redirect('/')
         except:
             return 'There was an issue updating your task'
     else:
-        return render_template('update.html',task=task_to_update)
-    
+        return render_template('update.html',task=task)
     
 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 
 
 if __name__ == '__main__' :
