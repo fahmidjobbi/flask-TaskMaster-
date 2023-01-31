@@ -8,16 +8,17 @@ import uuid
 
 
 app=Flask(__name__)
-database_name='todo'
-DB_URI="mongodb+srv://FahmiDJOBBI:55046258@cluster0.nraui4d.mongodb.net/?retryWrites=true&w=majority"
-app.config["MONGO_HOST"]=DB_URI
+DB_URI="mongodb+srv://FahmiDJOBBI:55046258@cluster0.nraui4d.mongodb.net/API?retryWrites=true&w=majority"
+app.config['MONGODB_SETTINGS'] = {
+    'db': 'API',
+    'host': DB_URI
+}
 db=MongoEngine()
 db.init_app(app)
-api=Api(app)
 
 
 class Todo(db.Document):
-     _id=db.ObjectIdField()
+     _id=db.StringField(default=str(uuid.uuid4()),primary_key=True)
      content=db.StringField()
      completed=db.IntField(default=0)
      date_created=db.DateTimeField(default=datetime.utcnow)
@@ -34,10 +35,15 @@ def index():
     if request.method == 'POST':
         try:
             taskcontent=request.form['task']
-            new_task=Todo(content=taskcontent,completed=0,date_created=datetime.utcnow)
-            print(new_task)
-            a=new_task.save()
-            print(a)
+            new_task=Todo(
+                _id=str(uuid.uuid4()),
+                content=taskcontent,
+                completed=0,
+                date_created=datetime.utcnow()
+                )
+            print(new_task._id)
+            new_task.save()
+           
                
             return redirect('/')
         except:
